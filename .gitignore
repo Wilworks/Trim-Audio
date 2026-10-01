@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Output directories & raw audio recordings
+output/
+trimmed_output/
+*.m4a
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+
+# Virtual environment & IDE
+venv/
+.venv/
+env/
+.idea/
+.vscode/
+
+# Node & web app build outputs (if built)
+node_modules/
+dist/
+build/
+*.log

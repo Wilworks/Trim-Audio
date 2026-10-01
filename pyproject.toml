@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trim-audio"
+version = "1.0.0"
+description = "High-precision CLI audio trimmer and ASR speech transcription utility"
+readme = "README.md"
+authors = [{ name = "Wilfred Ayine" }]
+license = { text = "MIT" }
+keywords = ["audio", "trimmer", "ffmpeg", "whisper", "transcription", "asr", "audio-segmentation"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Conversion",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+dependencies = [
+    "rich>=13.0.0",
+    "imageio-ffmpeg>=0.4.8",
+    "faster-whisper>=1.0.0",
+    "av<19"
+]
+
+[project.scripts]
+trim-audio = "trim_audio.cli:main"
+trimmer = "trim_audio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
