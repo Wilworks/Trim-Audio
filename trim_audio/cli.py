@@ -16,6 +16,7 @@ from rich import box
 
 from .trimmer import get_audio_info, trim_segment, split_into_parts, parse_timecode, format_time
 from .transcriber import transcribe_audio_file, batch_transcribe_files
+from .summarizer import summarize_file
 
 # Force UTF-8 encoding on Windows
 if sys.platform == "win32":
@@ -74,13 +75,13 @@ def cmd_split(args):
             results.append({
                 "part": i + 1,
                 "filename": out_file.name,
+                "path": str(out_file),
                 "range": f"{format_time(start_t)} ➔ {format_time(start_t + dur)}",
                 "duration": p_info["duration_formatted"],
                 "size_mb": f"{p_info['size_mb']} MB"
             })
             progress.advance(task)
 
-    # Render table
     table = Table(title="[bold bright_green]📊 TRIMMING RESULTS[/bold bright_green]", box=box.DOUBLE_EDGE, header_style="bold bright_cyan")
     table.add_column("#", style="bold white")
     table.add_column("Filename", style="bold yellow")
@@ -95,8 +96,11 @@ def cmd_split(args):
     console.print("\n", table)
     console.print(f"\n[bold black on bright_cyan] 📁 OUTPUT FOLDER [/] Saved to: [underline]{out_dir}[/underline]\n")
 
-    if args.transcribe:
-        cmd_transcribe_files([r["path"] for r in results], out_dir / "TRANSCRIPT_COMBINED.txt")
+    if getattr(args, "transcribe", False):
+        master_txt = out_dir / "TRANSCRIPT_COMBINED.txt"
+        cmd_transcribe_files([r["path"] for r in results], master_txt)
+        if getattr(args, "summarize", False):
+            cmd_summarize(master_txt)
 
 def cmd_range(args):
     render_hero_banner()
@@ -126,12 +130,29 @@ def cmd_transcribe_files(audio_files, master_out):
     console.print(f"[bold black on bright_green] 🎉 TRANSCRIPTION COMPLETE [/] Total Words: {res['total_words']}")
     console.print(f"📁 Master Transcript Saved To: [underline]{res['output_path']}[/underline]\n")
 
+def cmd_summarize(args_or_path):
+    if hasattr(args_or_path, "input"):
+        render_hero_banner()
+        input_path = Path(args_or_path.input)
+        output_path = args_or_path.output
+    else:
+        input_path = Path(args_or_path)
+        output_path = None
+
+    if not input_path.exists():
+        console.print(f"[bold red]❌ Transcript file not found:[/] {input_path}")
+        return
+
+    console.print(f"\n[bold yellow]🧠 Running AI Transcript Summarizer on:[/] [cyan]{input_path.name}[/cyan]...")
+    out = summarize_file(input_path, output_path)
+    console.print(f"[bold black on bright_green] ✔ AI SUMMARY GENERATED [/] Saved to: [underline]{out}[/underline]\n")
+
 def interactive_menu():
     render_hero_banner()
     console.print("[bold yellow]Choose an option:[/bold yellow]")
     console.print(" 1. Split an audio file into N equal parts")
     console.print(" 2. Trim a custom timestamp range")
-    console.print(" 3. Transcribe audio files to text")
+    console.print(" 3. Summarize an existing transcript file")
     console.print(" 4. Exit\n")
 
     choice = input("Enter choice (1-4): ").strip()
@@ -146,6 +167,7 @@ def interactive_menu():
             parts = parts_cnt
             output = o_dir if o_dir else None
             transcribe = False
+            summarize = False
 
         cmd_split(Args())
     elif choice == "2":
@@ -161,10 +183,13 @@ def interactive_menu():
             output = o_dir if o_dir else None
 
         cmd_range(Args())
+    elif choice == "3":
+        t_path = input("Enter path to transcript file (.txt / .md): ").strip().strip('"')
+        cmd_summarize(t_path)
 
 def main():
     parser = argparse.ArgumentParser(
-        description="AudioTrimmer Pro - CLI Audio Segmentation & ASR Pipeline"
+        description="AudioTrimmer Pro - CLI Audio Segmentation & AI Transcription Pipeline"
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -174,6 +199,7 @@ def main():
     s_parser.add_argument("-p", "--parts", type=int, default=2, help="Number of parts (default: 2)")
     s_parser.add_argument("-o", "--output", default=None, help="Output folder")
     s_parser.add_argument("-t", "--transcribe", action="store_true", help="Automatically transcribe trimmed parts")
+    s_parser.add_argument("-s", "--summarize", action="store_true", help="Generate AI summary report after transcribing")
 
     # Range
     r_parser = subparsers.add_parser("range", help="Trim custom timecode range")
@@ -181,6 +207,11 @@ def main():
     r_parser.add_argument("-s", "--start", required=True, help="Start timecode")
     r_parser.add_argument("-e", "--end", required=True, help="End timecode")
     r_parser.add_argument("-o", "--output", default=None, help="Output folder")
+
+    # Summarize
+    sum_parser = subparsers.add_parser("summarize", help="Generate AI summary from a transcript file")
+    sum_parser.add_argument("-i", "--input", required=True, help="Path to transcript file (.txt / .md)")
+    sum_parser.add_argument("-o", "--output", default=None, help="Output summary Markdown file path")
 
     args = parser.parse_args()
 
@@ -190,6 +221,8 @@ def main():
         cmd_split(args)
     elif args.command == "range":
         cmd_range(args)
+    elif args.command == "summarize":
+        cmd_summarize(args)
 
 if __name__ == "__main__":
     main()

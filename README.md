@@ -26,6 +26,7 @@ A high-precision, open-source Command Line Tool (CLI) designed for **lossless au
   - **Custom Timestamp Range**: Cut exact timecodes (`hh:mm:ss.ms` or seconds).
 - 🎙️ **Built-in ASR Transcriber**: Integrates `Faster-Whisper` (int8 quantized CPU execution) to convert trimmed audio chunks into clean text transcripts.
 - 📊 **Consolidated Reporting**: Automatically aggregates multi-clip transcripts into a single master `.txt` / `.md` file with word counts and timecodes.
+- 🧠 **AI Transcript Summarizer**: Automatically parses massive (20,000+ word) transcripts into structured executive summaries, key advice takeaways, notable quotes, and section breakdowns.
 - 🎨 **Rich Terminal Telemetry**: Beautiful CLI interface powered by `rich` with glowing hero banners, live progress bars, and diagnostic summary tables.
 
 ---
@@ -64,8 +65,12 @@ trim-audio split -i "lecture.mp3" -p 2 -o "./output" --transcribe
 trim-audio range -i "podcast.m4a" -s 00:05:00 -e 00:15:30 -o "./output"
 ```
 
-### 4. Interactive Mode
-Simply type `trim-audio` without arguments to launch the interactive terminal menu:
+### 4. Generate AI Executive Summary from Transcript
+```bash
+trim-audio summarize -i "TRANSCRIPT.txt" -o "SUMMARY.md"
+```
+
+### 5. Interactive Mode
 ```bash
 trim-audio
 ```
