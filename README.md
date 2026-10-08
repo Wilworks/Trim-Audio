@@ -73,27 +73,6 @@ trim-audio summarize -i "TRANSCRIPT.txt" -o "SUMMARY.md"
 ### 5. Interactive Mode
 ```bash
 trim-audio
-```
-
----
-
-## 📲 LinkedIn Post Template (Copy & Share!)
-
-> **Building tools to solve my own learning workflows 🚀**
-> 
-> I recently had several long audio recordings (over 4 hours of conference sessions) that I needed to review and study. Instead of manually listening through or fighting with bloated online tools, I built **AudioTrimmer Pro** — an open-source CLI tool that:
-> 
-> ✂️ Slices massive audio recordings into equal parts losslessly in seconds via FFmpeg  
-> 🎙️ Automatically transcribes every audio segment using quantized Faster-Whisper  
-> 📄 Compiles everything into a single structured master text transcript for easy reading  
-> 
-> Decided to drop the code completely free and open-source on GitHub for anyone who needs fast audio segmentation and transcription:
-> 
-> 🔗 **GitHub Repository**: https://github.com/Wilworks/Trim-Audio
-> 
-> #Python #OpenSource #AI #Whisper #FFmpeg #SoftwareEngineering #BuildInPublic
-
----
 
 ## 📜 License
 
