@@ -73,6 +73,7 @@ trim-audio summarize -i "TRANSCRIPT.txt" -o "SUMMARY.md"
 ### 5. Interactive Mode
 ```bash
 trim-audio
+```
 
 ## 📜 License
 
