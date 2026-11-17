@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich import box
+from rich.prompt import Prompt
 
 from .trimmer import get_audio_info, trim_segment, split_into_parts, parse_timecode, format_time
 from .transcriber import DEFAULT_DEVICE, transcribe_audio_file, batch_transcribe_files
@@ -28,16 +29,15 @@ console = Console(force_terminal=True)
 
 def render_hero_banner():
     banner = (
-        "[bold cyan]TRIM AUDIO[/bold cyan]\n"
-        "[bold white]Speech to searchable PDF[/bold white]\n"
-        "[dim]Audio & video transcription · audio tools[/dim]"
+        "[bold white]Audio & Video Transcript Studio[/bold white]\n"
+        "[dim]Turn spoken audio into a clean, searchable PDF.[/dim]"
     )
     console.print(
         Panel(
             banner,
-            title="TRANSCRIPT STUDIO",
+            title="[bold cyan]TRIM AUDIO[/bold cyan]",
             box=box.ROUNDED,
-            border_style="cyan",
+            border_style="bright_blue",
             expand=False,
         )
     )
@@ -47,6 +47,15 @@ def _strip_path_quotes(value: str) -> str:
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         return value[1:-1]
     return value
+
+def _prompt_timecode(label: str) -> str:
+    while True:
+        value = input(label).strip()
+        try:
+            parse_timecode(value)
+            return value
+        except ValueError as exc:
+            console.print(f"[bold red]Invalid timecode:[/] {exc}")
 
 def cmd_split(args):
     render_hero_banner()
@@ -120,8 +129,15 @@ def cmd_range(args):
         console.print(f"[bold red]❌ File not found:[/] {input_path}")
         return
 
-    start_sec = parse_timecode(args.start)
-    end_sec = parse_timecode(args.end)
+    try:
+        start_sec = parse_timecode(args.start)
+        end_sec = parse_timecode(args.end)
+    except ValueError as exc:
+        console.print(f"[bold red]Invalid time range:[/] {exc}")
+        return
+    if start_sec < 0 or end_sec <= start_sec:
+        console.print("[bold red]Invalid time range:[/] End time must be after the start time.")
+        return
     dur_sec = end_sec - start_sec
 
     out_dir = Path(args.output) if args.output else input_path.parent / "trimmed_output"
@@ -177,14 +193,24 @@ def cmd_summarize(args_or_path):
 
 def interactive_menu():
     render_hero_banner()
-    console.print("[bold yellow]Choose a workflow:[/bold yellow]")
-    console.print(" 1. Transcribe audio/video to a searchable PDF")
-    console.print(" 2. Split audio into equal parts")
-    console.print(" 3. Trim audio by timestamp")
-    console.print(" 4. Summarize an existing transcript")
-    console.print(" 5. Exit\n")
+    actions = Table.grid(padding=(0, 2))
+    actions.add_column(style="bold cyan", width=3)
+    actions.add_column(style="bold")
+    actions.add_column(style="dim")
+    actions.add_row("1", "Transcribe audio/video", "Searchable PDF · MPS on Apple Silicon")
+    actions.add_row("2", "Split audio", "Create equal parts")
+    actions.add_row("3", "Trim audio", "Select a time range")
+    actions.add_row("4", "Summarize transcript", "Generate a concise report")
+    actions.add_row("q", "Quit", "")
+    console.print("\n[bold]What would you like to do?[/bold]")
+    console.print(actions)
 
-    choice = input("Enter choice (1-5): ").strip()
+    choice = Prompt.ask(
+        "\n[bold cyan]›[/bold cyan] Choose an action",
+        choices=["1", "2", "3", "4", "q"],
+        default="q",
+        show_choices=False,
+    )
     if choice == "1":
         f_path = _strip_path_quotes(input("Enter audio or video file path: "))
         o_path = _strip_path_quotes(input("Output PDF path (Enter for default): "))
@@ -212,8 +238,8 @@ def interactive_menu():
         cmd_split(Args())
     elif choice == "3":
         f_path = _strip_path_quotes(input("Enter audio file path: "))
-        s_tc = input("Start time (hh:mm:ss or seconds): ").strip()
-        e_tc = input("End time (hh:mm:ss or seconds): ").strip()
+        s_tc = _prompt_timecode("Start time (hh:mm:ss or seconds): ")
+        e_tc = _prompt_timecode("End time (hh:mm:ss or seconds): ")
         o_dir = _strip_path_quotes(input("Output folder (Enter for default): "))
 
         class Args:
@@ -229,7 +255,8 @@ def interactive_menu():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribe audio or video to searchable PDFs, with audio trimming and transcript tools."
+        description="Transcribe audio or video to searchable PDFs, with audio trimming and transcript tools.",
+        epilog="Run without a command to open the interactive workflow picker.",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
