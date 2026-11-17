@@ -87,9 +87,12 @@ or disable notes to create a transcript-only PDF:
 
 ```bash
 trim-audio transcribe -i "Bioelectronics Lecture 4.mov" \
-  --notes-model qwen3:8b --author "Wilfred Ayine"
+  --notes-model qwen3:8b --lecturer "Dr. Jane Doe" --author "Wilfred Ayine"
 trim-audio transcribe -i "Bioelectronics Lecture 4.mov" --no-notes
 ```
+
+The interactive flow asks for the lecturer name each time; press Enter to use the
+default. Pass an audio or video **file** to `-i`, not its containing folder.
 
 MPS is the default transcription device on Apple Silicon; use `--device cpu` or
 `--device mps` to select it explicitly.

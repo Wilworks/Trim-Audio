@@ -173,6 +173,12 @@ def cmd_transcribe(args):
     if not input_path.exists():
         console.print(f"[bold red]❌ File not found:[/] {input_path}")
         return
+    if not input_path.is_file():
+        console.print(
+            f"[bold red]❌ Input path is not a file. Select an audio/video file, not a folder:[/] "
+            f"{input_path}"
+        )
+        return
 
     output_path = Path(args.output) if args.output else input_path.with_name(f"{input_path.stem}_transcript.pdf")
     device = getattr(args, "device", DEFAULT_DEVICE)
@@ -300,27 +306,36 @@ def cmd_summarize(args_or_path):
 def interactive_menu():
     render_hero_banner()
     try:
-        choice = select(
-            "What would you like to do?",
-            choices=[
-                Choice("Transcribe audio/video  ·  searchable PDF  ·  MPS on Apple Silicon", value="transcribe"),
-                Choice("Build lecture notes from a transcript  ·  local Ollama", value="notes"),
-                Choice("Split audio  ·  equal parts", value="split"),
-                Choice("Trim audio  ·  choose a time range", value="range"),
-                Choice("Summarize a transcript", value="summarize"),
-                Choice("Quit", value="quit"),
-            ],
-            qmark="?",
-            style=menu_style,
-            instruction="(Use arrow keys and press Enter)",
-            use_shortcuts=True,
-        ).ask()
+        _run_interactive_menu()
     except KeyboardInterrupt:
-        console.print("\n[dim]Goodbye.[/dim]")
+        console.print("\n[dim]Cancelled.[/dim]")
         return
+
+def _run_interactive_menu():
+    choice = select(
+        "What would you like to do?",
+        choices=[
+            Choice("Transcribe audio/video  ·  searchable PDF  ·  MPS on Apple Silicon", value="transcribe"),
+            Choice("Build lecture notes from a transcript  ·  local Ollama", value="notes"),
+            Choice("Split audio  ·  equal parts", value="split"),
+            Choice("Trim audio  ·  choose a time range", value="range"),
+            Choice("Summarize a transcript", value="summarize"),
+            Choice("Quit", value="quit"),
+        ],
+        qmark="?",
+        style=menu_style,
+        instruction="(Use arrow keys and press Enter)",
+        use_shortcuts=True,
+    ).ask()
 
     if choice == "transcribe":
         f_path = _strip_path_quotes(input("Enter audio or video file path: "))
+        if not Path(f_path).is_file():
+            console.print(
+                f"[bold red]❌ Select an audio/video file, not a folder or missing path:[/] "
+                f"{f_path}"
+            )
+            return
         o_path = _strip_path_quotes(input("Output PDF path (Enter for default): "))
         device = input(f"Device (mps/cpu, default {DEFAULT_DEVICE}): ").strip().lower() or DEFAULT_DEVICE
         lecturer = _strip_path_quotes(

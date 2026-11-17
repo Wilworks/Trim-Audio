@@ -38,7 +38,11 @@ class TranscriptPdfTests(unittest.TestCase):
     def test_interactive_menu_offers_transcription(self):
         with (
             patch("trim_audio.cli.select") as menu,
-            patch("builtins.input", side_effect=["'lecture.mov'", "", "mps", "", "", "", ""]),
+            patch(
+                "builtins.input",
+                side_effect=["'lecture.mov'", "", "mps", "Dr. Jane Doe", "", "", ""],
+            ),
+            patch("trim_audio.cli.Path.is_file", return_value=True),
             patch("trim_audio.cli.cmd_transcribe") as transcribe,
         ):
             menu.return_value.ask.return_value = "transcribe"
@@ -48,7 +52,7 @@ class TranscriptPdfTests(unittest.TestCase):
         self.assertEqual(menu.call_args.kwargs["choices"][0].value, "transcribe")
         self.assertEqual(args.input, "lecture.mov")
         self.assertIsNone(args.output)
-        self.assertEqual(args.lecturer, "Dr. Cletus Fiifi Adams")
+        self.assertEqual(args.lecturer, "Dr. Jane Doe")
         self.assertEqual(args.author, "Wilfred Ayine")
         self.assertEqual(args.device, "mps")
         self.assertEqual(args.notes_model, "qwen3:8b")
@@ -72,6 +76,7 @@ class TranscriptPdfTests(unittest.TestCase):
         with (
             patch("trim_audio.cli.select") as menu,
             patch("builtins.input", side_effect=["lecture.mov", "", "cpu", "", "", "n"]),
+            patch("trim_audio.cli.Path.is_file", return_value=True),
             patch("trim_audio.cli.cmd_transcribe") as transcribe,
         ):
             menu.return_value.ask.return_value = "transcribe"
@@ -79,6 +84,29 @@ class TranscriptPdfTests(unittest.TestCase):
 
         args = transcribe.call_args.args[0]
         self.assertFalse(args.build_notes)
+
+    def test_interactive_menu_handles_ctrl_c_during_prompt(self):
+        with (
+            patch("trim_audio.cli.select") as menu,
+            patch("builtins.input", side_effect=KeyboardInterrupt),
+            patch("trim_audio.cli.cmd_transcribe") as transcribe,
+        ):
+            menu.return_value.ask.return_value = "transcribe"
+            interactive_menu()
+
+        transcribe.assert_not_called()
+
+    def test_interactive_transcription_rejects_directory_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with (
+                patch("trim_audio.cli.select") as menu,
+                patch("builtins.input", side_effect=[temp_dir]),
+                patch("trim_audio.cli.cmd_transcribe") as transcribe,
+            ):
+                menu.return_value.ask.return_value = "transcribe"
+                interactive_menu()
+
+        transcribe.assert_not_called()
 
     def test_blank_interactive_timecode_is_reprompted(self):
         with patch("builtins.input", side_effect=["", "00:00:05"]):

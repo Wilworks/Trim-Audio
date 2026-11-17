@@ -65,6 +65,15 @@ class TranscribeCommandTests(unittest.TestCase):
 
         create_pdf.assert_not_called()
 
+    def test_directory_input_is_rejected_before_transcription(self):
+        input_directory = Path(self.temp_dir.name) / "media-folder"
+        input_directory.mkdir()
+        self.args.input = input_directory
+        with patch("trim_audio.cli.transcribe_audio_file") as transcribe:
+            cmd_transcribe(self.args)
+
+        transcribe.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
