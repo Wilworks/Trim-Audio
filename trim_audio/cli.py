@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich import box
-from rich.prompt import Prompt
+from questionary import Choice, Style, select
 
 from .trimmer import get_audio_info, trim_segment, split_into_parts, parse_timecode, format_time
 from .transcriber import DEFAULT_DEVICE, transcribe_audio_file, batch_transcribe_files
@@ -26,6 +26,15 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 console = Console(force_terminal=True)
+menu_style = Style([
+    ("qmark", "fg:#2563eb bold"),
+    ("question", "bold"),
+    ("answer", "fg:#2563eb bold"),
+    ("pointer", "fg:#2563eb bold"),
+    ("highlighted", "fg:#2563eb bold"),
+    ("selected", "fg:#2563eb"),
+    ("instruction", "fg:#64748b"),
+])
 
 def render_hero_banner():
     banner = (
@@ -193,25 +202,26 @@ def cmd_summarize(args_or_path):
 
 def interactive_menu():
     render_hero_banner()
-    actions = Table.grid(padding=(0, 2))
-    actions.add_column(style="bold cyan", width=3)
-    actions.add_column(style="bold")
-    actions.add_column(style="dim")
-    actions.add_row("1", "Transcribe audio/video", "Searchable PDF · MPS on Apple Silicon")
-    actions.add_row("2", "Split audio", "Create equal parts")
-    actions.add_row("3", "Trim audio", "Select a time range")
-    actions.add_row("4", "Summarize transcript", "Generate a concise report")
-    actions.add_row("q", "Quit", "")
-    console.print("\n[bold]What would you like to do?[/bold]")
-    console.print(actions)
+    try:
+        choice = select(
+            "What would you like to do?",
+            choices=[
+                Choice("Transcribe audio/video  ·  searchable PDF  ·  MPS on Apple Silicon", value="transcribe"),
+                Choice("Split audio  ·  equal parts", value="split"),
+                Choice("Trim audio  ·  choose a time range", value="range"),
+                Choice("Summarize a transcript", value="summarize"),
+                Choice("Quit", value="quit"),
+            ],
+            qmark="?",
+            style=menu_style,
+            instruction="(Use arrow keys and press Enter)",
+            use_shortcuts=True,
+        ).ask()
+    except KeyboardInterrupt:
+        console.print("\n[dim]Goodbye.[/dim]")
+        return
 
-    choice = Prompt.ask(
-        "\n[bold cyan]›[/bold cyan] Choose an action",
-        choices=["1", "2", "3", "4", "q"],
-        default="q",
-        show_choices=False,
-    )
-    if choice == "1":
+    if choice == "transcribe":
         f_path = _strip_path_quotes(input("Enter audio or video file path: "))
         o_path = _strip_path_quotes(input("Output PDF path (Enter for default): "))
         device = input(f"Device (mps/cpu, default {DEFAULT_DEVICE}): ").strip().lower() or DEFAULT_DEVICE
@@ -222,7 +232,7 @@ def interactive_menu():
             model="tiny.en",
             device=device,
         ))
-    elif choice == "2":
+    elif choice == "split":
         f_path = _strip_path_quotes(input("Enter audio file path: "))
         parts = input("Number of parts (default 2): ").strip()
         parts_cnt = int(parts) if parts.isdigit() else 2
@@ -236,7 +246,7 @@ def interactive_menu():
             summarize = False
 
         cmd_split(Args())
-    elif choice == "3":
+    elif choice == "range":
         f_path = _strip_path_quotes(input("Enter audio file path: "))
         s_tc = _prompt_timecode("Start time (hh:mm:ss or seconds): ")
         e_tc = _prompt_timecode("End time (hh:mm:ss or seconds): ")
@@ -249,7 +259,7 @@ def interactive_menu():
             output = o_dir if o_dir else None
 
         cmd_range(Args())
-    elif choice == "4":
+    elif choice == "summarize":
         t_path = _strip_path_quotes(input("Enter path to transcript file (.txt / .md): "))
         cmd_summarize(t_path)
 

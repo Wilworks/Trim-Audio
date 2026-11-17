@@ -30,14 +30,15 @@ class TranscriptPdfTests(unittest.TestCase):
 
     def test_interactive_menu_offers_transcription(self):
         with (
-            patch("trim_audio.cli.Prompt.ask", return_value="1") as prompt,
+            patch("trim_audio.cli.select") as menu,
             patch("builtins.input", side_effect=["'lecture.mov'", "", "mps"]),
             patch("trim_audio.cli.cmd_transcribe") as transcribe,
         ):
+            menu.return_value.ask.return_value = "transcribe"
             interactive_menu()
 
         args = transcribe.call_args.args[0]
-        self.assertIn("q", prompt.call_args.kwargs["choices"])
+        self.assertEqual(menu.call_args.kwargs["choices"][0].value, "transcribe")
         self.assertEqual(args.input, "lecture.mov")
         self.assertIsNone(args.output)
         self.assertEqual(args.lecturer, "Dr. Cletus Fiifi Adams")

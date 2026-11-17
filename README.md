@@ -87,6 +87,7 @@ to choose another PDF path or `--lecturer` to change the lecturer name.
 ```bash
 trim-audio
 ```
+Use the arrow keys to select a workflow and press Enter.
 
 ## 📜 License
 
