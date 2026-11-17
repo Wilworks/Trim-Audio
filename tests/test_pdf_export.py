@@ -21,12 +21,19 @@ class TranscriptPdfTests(unittest.TestCase):
             output_path = create_transcript_pdf(
                 transcription,
                 Path(temp_dir) / "lecture.pdf",
+                lecture_notes=(
+                    "## Core concepts\n"
+                    "- Ohm's law: **V = I × R** (& measured in ohms).\n\n"
+                    "### Equation\n$$\nV = I \\times R\n$$"
+                ),
+                notes_model="qwen3:8b",
             )
             pdf_data = output_path.read_bytes()
 
         self.assertTrue(pdf_data.startswith(b"%PDF-"))
         self.assertIn(b"/Title (Bioelectronics Lecture 4)", pdf_data)
-        self.assertIn(b"/Author (Dr. Cletus Fiifi Adams)", pdf_data)
+        self.assertIn(b"/Author (Wilfred Ayine)", pdf_data)
+        self.assertIn(b"/Count 2", pdf_data)
 
     def test_interactive_menu_offers_transcription(self):
         with (
@@ -43,6 +50,7 @@ class TranscriptPdfTests(unittest.TestCase):
         self.assertIsNone(args.output)
         self.assertEqual(args.lecturer, "Dr. Cletus Fiifi Adams")
         self.assertEqual(args.device, "mps")
+        self.assertTrue(args.build_notes)
 
     def test_blank_interactive_timecode_is_reprompted(self):
         with patch("builtins.input", side_effect=["", "00:00:05"]):

@@ -17,7 +17,8 @@ from questionary import Choice, Style, select
 
 from .trimmer import get_audio_info, trim_segment, split_into_parts, parse_timecode, format_time
 from .transcriber import DEFAULT_DEVICE, transcribe_audio_file, batch_transcribe_files
-from .pdf_export import DEFAULT_LECTURER, create_transcript_pdf
+from .pdf_export import DEFAULT_AUTHOR, DEFAULT_LECTURER, create_transcript_pdf
+from .notes_builder import DEFAULT_NOTES_MODEL, build_lecture_notes
 from .summarizer import summarize_file
 
 # Force UTF-8 encoding on Windows
@@ -179,7 +180,30 @@ def cmd_transcribe(args):
         f"using [cyan]{device}[/cyan]..."
     )
     result = transcribe_audio_file(input_path, model_name=args.model, device=device)
-    pdf_path = create_transcript_pdf(result, output_path, lecturer=args.lecturer)
+    author = getattr(args, "author", DEFAULT_AUTHOR)
+    lecture_notes = None
+    notes_model = None
+    if getattr(args, "build_notes", True):
+        notes_model = getattr(args, "notes_model", DEFAULT_NOTES_MODEL)
+        try:
+            with console.status(
+                f"[bold cyan]Building comprehensive notes locally with {notes_model}...[/]"
+            ):
+                lecture_notes = build_lecture_notes(result, model=notes_model)
+        except RuntimeError as exc:
+            console.print(
+                f"[bold red]Could not build lecture notes; no PDF was created:[/] {exc}"
+            )
+            return
+
+    pdf_path = create_transcript_pdf(
+        result,
+        output_path,
+        lecturer=args.lecturer,
+        author=author,
+        lecture_notes=lecture_notes,
+        notes_model=notes_model,
+    )
     console.print(f"[bold black on bright_green] ✔ TRANSCRIPT PDF GENERATED [/] Total Words: {result['word_count']}")
     console.print(f"📁 PDF Saved To: [underline]{pdf_path}[/underline]\n")
 
@@ -229,8 +253,11 @@ def interactive_menu():
             input=f_path,
             output=o_path or None,
             lecturer=DEFAULT_LECTURER,
+            author=DEFAULT_AUTHOR,
             model="tiny.en",
             device=device,
+            notes_model=DEFAULT_NOTES_MODEL,
+            build_notes=True,
         ))
     elif choice == "split":
         f_path = _strip_path_quotes(input("Enter audio file path: "))
@@ -295,7 +322,19 @@ def main():
     t_parser.add_argument("-i", "--input", required=True, help="Input audio or video file path")
     t_parser.add_argument("-o", "--output", default=None, help="Output PDF path (defaults beside input)")
     t_parser.add_argument("--lecturer", default=DEFAULT_LECTURER, help="Lecturer name printed in the PDF")
+    t_parser.add_argument("--author", default=DEFAULT_AUTHOR, help="Your name printed in the PDF")
     t_parser.add_argument("--model", default="tiny.en", help="Whisper model name (default: tiny.en)")
+    t_parser.add_argument(
+        "--notes-model",
+        default=DEFAULT_NOTES_MODEL,
+        help=f"Local Ollama model for lecture notes (default: {DEFAULT_NOTES_MODEL})",
+    )
+    t_parser.add_argument(
+        "--no-notes",
+        dest="build_notes",
+        action="store_false",
+        help="Create a transcript-only PDF without local AI lecture notes",
+    )
     t_parser.add_argument(
         "--device",
         choices=("mps", "cpu"),

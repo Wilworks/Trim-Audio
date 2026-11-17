@@ -77,11 +77,15 @@ trim-audio transcribe -i "Bioelectronics Lecture 4.mov" --device mps
 ```
 
 The PDF is saved beside the source video as `Bioelectronics Lecture 4_transcript.pdf`.
-Its title is taken from the filename, and it includes the lecturer name, timestamped
-speech, the generation date, and a clickable link to this repository. The default
-device is MPS on Apple Silicon and CPU elsewhere. Use `--device cpu` or `--device mps`
-to select it explicitly. The default lecturer is Dr. Cletus Fiifi Adams. Use `--output`
-to choose another PDF path or `--lecturer` to change the lecturer name.
+It contains two parts: the original timestamped transcript, followed by organized,
+comprehensive lecture notes. The notes are generated locally with Ollama's `qwen3:8b`
+model; transcript text is sent only to the local Ollama service. Ollama must be running
+with the model installed (`ollama pull qwen3:8b` if needed). The PDF title comes from
+the video filename and includes lecturer Dr. Cletus Fiifi Adams, prepared by Wilfred
+Ayine, and a clickable link to this repository. Use `--notes-model` to select another
+local Ollama model, `--no-notes` for a transcript-only PDF, or `--author` to change
+the prepared-by name. MPS is the default transcription device on Apple Silicon; use
+`--device cpu` or `--device mps` to select it explicitly.
 
 ### 6. Interactive Mode
 ```bash
