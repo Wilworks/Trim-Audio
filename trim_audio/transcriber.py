@@ -1,22 +1,36 @@
 """
 Automated Speech Recognition (ASR) Engine
-Powered by Faster-Whisper / Whisper with int8 quantization support
+Powered by Faster-Whisper / Whisper with CPU int8 and Apple MPS FP16 support
 """
 
 import os
 import json
+import platform
+import sys
 import time
 from pathlib import Path
 
-def transcribe_audio_file(audio_path: str | Path, model_name: str = "tiny.en", device: str = "cpu") -> dict:
+DEFAULT_DEVICE = (
+    "mps"
+    if sys.platform == "darwin" and platform.machine().lower() in {"arm64", "aarch64"}
+    else "cpu"
+)
+
+
+def transcribe_audio_file(
+    audio_path: str | Path,
+    model_name: str = "tiny.en",
+    device: str = DEFAULT_DEVICE,
+) -> dict:
     """Transcribes an audio file using Faster-Whisper ASR engine."""
     audio_path = Path(audio_path)
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file for transcription not found: {audio_path}")
 
+    compute_type = "float16" if device == "mps" else "int8"
     try:
         from faster_whisper import WhisperModel
-        model = WhisperModel(model_name, device=device, compute_type="int8")
+        model = WhisperModel(model_name, device=device, compute_type=compute_type)
         segments, info = model.transcribe(str(audio_path), beam_size=5, vad_filter=True)
         
         segment_list = []
@@ -44,7 +58,9 @@ def transcribe_audio_file(audio_path: str | Path, model_name: str = "tiny.en", d
             "full_text": full_text
         }
 
-    except Exception as e:
+    except Exception:
+        if device == "mps":
+            raise
         # Fallback to standard openai-whisper if faster-whisper hits compatibility issue
         import whisper
         model = whisper.load_model("tiny")

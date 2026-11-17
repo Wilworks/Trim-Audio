@@ -1,8 +1,12 @@
 LICENSE
 README.md
 pyproject.toml
+tests/test_pdf_export.py
+tests/test_transcriber.py
 trim_audio/__init__.py
 trim_audio/cli.py
+trim_audio/pdf_export.py
+trim_audio/summarizer.py
 trim_audio/transcriber.py
 trim_audio/trimmer.py
 trim_audio.egg-info/PKG-INFO

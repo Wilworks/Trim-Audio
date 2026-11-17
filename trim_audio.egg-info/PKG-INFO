@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
 Name: trim-audio
 Version: 1.0.0
-Summary: High-precision CLI audio trimmer and ASR speech transcription utility
+Summary: Audio and video speech transcription to searchable PDFs, with audio trimming and transcript summaries
 Author: Wilfred Ayine
 License: MIT
 Keywords: audio,trimmer,ffmpeg,whisper,transcription,asr,audio-segmentation
@@ -16,6 +16,7 @@ Requires-Dist: rich>=13.0.0
 Requires-Dist: imageio-ffmpeg>=0.4.8
 Requires-Dist: faster-whisper>=1.0.0
 Requires-Dist: av<19
+Requires-Dist: reportlab>=4.0.0
 Dynamic: license-file
 
 # ✂️ AudioTrimmer Pro & ASR Pipeline
@@ -25,7 +26,7 @@ Dynamic: license-file
 [![FFmpeg](https://img.shields.io/badge/Engine-FFmpeg-green.svg)](https://ffmpeg.org)
 [![ASR](https://img.shields.io/badge/Speech%20Recognition-Faster--Whisper-magenta.svg)](https://github.com/SYSTRAN/faster-whisper)
 
-A high-precision, open-source Command Line Tool (CLI) designed for **lossless audio trimming, segmenting, and automated speech-to-text transcription**. Built to process long recordings (conference talks, lectures, audiobooks, podcasts) into manageable chunks for reading and study.
+A clean, open-source CLI for **transcribing speech from audio and video into searchable PDFs**, with audio trimming, segmentation, and transcript summaries.
 
 ```text
   █████╗ ██╗   ██╗██████╗ ██╗██╗███╗   ██╗████████╗██████╗ ██╗███╗   ██╗██████╗ 
@@ -44,8 +45,10 @@ A high-precision, open-source Command Line Tool (CLI) designed for **lossless au
 - ✂️ **Multi-Mode Segmentation**:
   - **Equal Part Splitter**: Slices 1 audio file into $N$ equal parts automatically.
   - **Custom Timestamp Range**: Cut exact timecodes (`hh:mm:ss.ms` or seconds).
-- 🎙️ **Built-in ASR Transcriber**: Integrates `Faster-Whisper` (int8 quantized CPU execution) to convert trimmed audio chunks into clean text transcripts.
+- 🎙️ **Built-in ASR Transcriber**: Uses `Faster-Whisper` with int8 CPU or FP16 Apple Silicon MPS execution.
+- 📄 **Speech-to-PDF Export**: Transcribes audio or video speech into a clean, timestamped, searchable PDF.
 - 📊 **Consolidated Reporting**: Automatically aggregates multi-clip transcripts into a single master `.txt` / `.md` file with word counts and timecodes.
+- 🧠 **AI Transcript Summarizer**: Automatically parses massive (20,000+ word) transcripts into structured executive summaries, key advice takeaways, notable quotes, and section breakdowns.
 - 🎨 **Rich Terminal Telemetry**: Beautiful CLI interface powered by `rich` with glowing hero banners, live progress bars, and diagnostic summary tables.
 
 ---
@@ -54,7 +57,7 @@ A high-precision, open-source Command Line Tool (CLI) designed for **lossless au
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/your-username/Trim-Audio.git
+git clone https://github.com/Wilworks/Trim-Audio.git
 cd Trim-Audio
 ```
 
@@ -84,31 +87,27 @@ trim-audio split -i "lecture.mp3" -p 2 -o "./output" --transcribe
 trim-audio range -i "podcast.m4a" -s 00:05:00 -e 00:15:30 -o "./output"
 ```
 
-### 4. Interactive Mode
-Simply type `trim-audio` without arguments to launch the interactive terminal menu:
+### 4. Generate AI Executive Summary from Transcript
+```bash
+trim-audio summarize -i "TRANSCRIPT.txt" -o "SUMMARY.md"
+```
+
+### 5. Transcribe Speech from a Video to a PDF
+```bash
+trim-audio transcribe -i "Bioelectronics Lecture 4.mov" --device mps
+```
+
+The PDF is saved beside the source video as `Bioelectronics Lecture 4_transcript.pdf`.
+Its title is taken from the filename, and it includes the lecturer name, timestamped
+speech, the generation date, and a clickable link to this repository. The default
+device is MPS on Apple Silicon and CPU elsewhere. Use `--device cpu` or `--device mps`
+to select it explicitly. The default lecturer is Dr. Cletus Fiifi Adams. Use `--output`
+to choose another PDF path or `--lecturer` to change the lecturer name.
+
+### 6. Interactive Mode
 ```bash
 trim-audio
 ```
-
----
-
-## 📲 LinkedIn Post Template (Copy & Share!)
-
-> **Building tools to solve my own learning workflows 🚀**
-> 
-> I recently had several long audio recordings (over 4 hours of conference sessions) that I needed to review and study. Instead of manually listening through or fighting with bloated online tools, I built **AudioTrimmer Pro** — an open-source CLI tool that:
-> 
-> ✂️ Slices massive audio recordings into equal parts losslessly in seconds via FFmpeg  
-> 🎙️ Automatically transcribes every audio segment using quantized Faster-Whisper  
-> 📄 Compiles everything into a single structured master text transcript for easy reading  
-> 
-> Decided to drop the code completely free and open-source on GitHub for anyone who needs fast audio segmentation and transcription:
-> 
-> 🔗 **GitHub Repository**: https://github.com/your-username/Trim-Audio
-> 
-> #Python #OpenSource #AI #Whisper #FFmpeg #SoftwareEngineering #BuildInPublic
-
----
 
 ## 📜 License
 

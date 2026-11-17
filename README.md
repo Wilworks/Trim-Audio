@@ -5,7 +5,7 @@
 [![FFmpeg](https://img.shields.io/badge/Engine-FFmpeg-green.svg)](https://ffmpeg.org)
 [![ASR](https://img.shields.io/badge/Speech%20Recognition-Faster--Whisper-magenta.svg)](https://github.com/SYSTRAN/faster-whisper)
 
-A high-precision, open-source Command Line Tool (CLI) designed for **lossless audio trimming, segmenting, and automated speech-to-text transcription**. Built to process long recordings (conference talks, lectures, audiobooks, podcasts) into manageable chunks for reading and study.
+A clean, open-source CLI for **transcribing speech from audio and video into searchable PDFs**, with audio trimming, segmentation, and transcript summaries.
 
 ```text
   █████╗ ██╗   ██╗██████╗ ██╗██╗███╗   ██╗████████╗██████╗ ██╗███╗   ██╗██████╗ 
@@ -24,7 +24,8 @@ A high-precision, open-source Command Line Tool (CLI) designed for **lossless au
 - ✂️ **Multi-Mode Segmentation**:
   - **Equal Part Splitter**: Slices 1 audio file into $N$ equal parts automatically.
   - **Custom Timestamp Range**: Cut exact timecodes (`hh:mm:ss.ms` or seconds).
-- 🎙️ **Built-in ASR Transcriber**: Integrates `Faster-Whisper` (int8 quantized CPU execution) to convert trimmed audio chunks into clean text transcripts.
+- 🎙️ **Built-in ASR Transcriber**: Uses `Faster-Whisper` with int8 CPU or FP16 Apple Silicon MPS execution.
+- 📄 **Speech-to-PDF Export**: Transcribes audio or video speech into a clean, timestamped, searchable PDF.
 - 📊 **Consolidated Reporting**: Automatically aggregates multi-clip transcripts into a single master `.txt` / `.md` file with word counts and timecodes.
 - 🧠 **AI Transcript Summarizer**: Automatically parses massive (20,000+ word) transcripts into structured executive summaries, key advice takeaways, notable quotes, and section breakdowns.
 - 🎨 **Rich Terminal Telemetry**: Beautiful CLI interface powered by `rich` with glowing hero banners, live progress bars, and diagnostic summary tables.
@@ -70,7 +71,19 @@ trim-audio range -i "podcast.m4a" -s 00:05:00 -e 00:15:30 -o "./output"
 trim-audio summarize -i "TRANSCRIPT.txt" -o "SUMMARY.md"
 ```
 
-### 5. Interactive Mode
+### 5. Transcribe Speech from a Video to a PDF
+```bash
+trim-audio transcribe -i "Bioelectronics Lecture 4.mov" --device mps
+```
+
+The PDF is saved beside the source video as `Bioelectronics Lecture 4_transcript.pdf`.
+Its title is taken from the filename, and it includes the lecturer name, timestamped
+speech, the generation date, and a clickable link to this repository. The default
+device is MPS on Apple Silicon and CPU elsewhere. Use `--device cpu` or `--device mps`
+to select it explicitly. The default lecturer is Dr. Cletus Fiifi Adams. Use `--output`
+to choose another PDF path or `--lecturer` to change the lecturer name.
+
+### 6. Interactive Mode
 ```bash
 trim-audio
 ```

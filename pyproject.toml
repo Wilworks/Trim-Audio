@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "trim-audio"
 version = "1.0.0"
-description = "High-precision CLI audio trimmer and ASR speech transcription utility"
+description = "Audio and video speech transcription to searchable PDFs, with audio trimming and transcript summaries"
 readme = "README.md"
 authors = [{ name = "Wilfred Ayine" }]
 license = { text = "MIT" }
@@ -21,7 +21,8 @@ dependencies = [
     "rich>=13.0.0",
     "imageio-ffmpeg>=0.4.8",
     "faster-whisper>=1.0.0",
-    "av<19"
+    "av<19",
+    "reportlab>=4.0.0"
 ]
 
 [project.scripts]
@@ -30,3 +31,4 @@ trimmer = "trim_audio.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+exclude = ["tests*"]
