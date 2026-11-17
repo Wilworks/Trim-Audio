@@ -6,6 +6,7 @@ Rich Terminal Telemetry & Command Dispatcher
 import os
 import sys
 import io
+import re
 import argparse
 from pathlib import Path
 from rich.console import Console
@@ -207,6 +208,78 @@ def cmd_transcribe(args):
     console.print(f"[bold black on bright_green] ✔ TRANSCRIPT PDF GENERATED [/] Total Words: {result['word_count']}")
     console.print(f"📁 PDF Saved To: [underline]{pdf_path}[/underline]\n")
 
+def _clean_transcript_text(text):
+    if "# MASTER AUDIO TRANSCRIPTION CONSOLIDATED REPORT" not in text:
+        return text.strip()
+
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if (
+            stripped.startswith("# MASTER")
+            or stripped.startswith("# Generated on:")
+            or stripped.startswith("# Total audio clips:")
+            or re.fullmatch(r"=+", stripped)
+            or re.fullmatch(r"File: .+ \| Duration: .+ \| Words: \d+", stripped)
+        ):
+            continue
+        transcript_header = re.match(r"^\s*TRANSCRIPT:\s*(.+)$", line)
+        if transcript_header:
+            lines.extend(["", f"## {transcript_header.group(1).strip()}", ""])
+        else:
+            lines.append(line)
+    return "\n".join(lines).strip()
+
+def cmd_build_notes(args):
+    input_path = Path(args.input)
+    if not input_path.exists():
+        console.print(f"[bold red]❌ Transcript file not found:[/] {input_path}")
+        return
+    try:
+        transcript_text = _clean_transcript_text(input_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError) as exc:
+        console.print(f"[bold red]Could not read transcript:[/] {exc}")
+        return
+    if not transcript_text:
+        console.print("[bold red]Transcript file is empty; no PDF was created.[/]")
+        return
+
+    transcription = {
+        "filename": input_path.name,
+        "path": str(input_path),
+        "word_count": len(transcript_text.split()),
+        "segments": [],
+        "full_text": transcript_text,
+    }
+    notes_model = args.notes_model
+    output_path = (
+        Path(args.output)
+        if args.output
+        else input_path.with_name(f"{input_path.stem}_notes.pdf")
+    )
+    console.print(
+        f"\n[bold yellow]🧠 Building lecture notes from:[/] [cyan]{input_path.name}[/cyan]"
+    )
+    try:
+        with console.status(
+            f"[bold cyan]Building comprehensive notes locally with {notes_model}...[/]"
+        ):
+            lecture_notes = build_lecture_notes(transcription, model=notes_model)
+    except RuntimeError as exc:
+        console.print(f"[bold red]Could not build lecture notes; no PDF was created:[/] {exc}")
+        return
+
+    pdf_path = create_transcript_pdf(
+        transcription,
+        output_path,
+        lecturer=args.lecturer,
+        author=args.author,
+        lecture_notes=lecture_notes,
+        notes_model=notes_model,
+    )
+    console.print(f"[bold black on bright_green] ✔ LECTURE NOTES PDF GENERATED [/]")
+    console.print(f"📁 PDF Saved To: [underline]{pdf_path}[/underline]\n")
+
 def cmd_summarize(args_or_path):
     if hasattr(args_or_path, "input"):
         render_hero_banner()
@@ -231,6 +304,7 @@ def interactive_menu():
             "What would you like to do?",
             choices=[
                 Choice("Transcribe audio/video  ·  searchable PDF  ·  MPS on Apple Silicon", value="transcribe"),
+                Choice("Build lecture notes from a transcript  ·  local Ollama", value="notes"),
                 Choice("Split audio  ·  equal parts", value="split"),
                 Choice("Trim audio  ·  choose a time range", value="range"),
                 Choice("Summarize a transcript", value="summarize"),
@@ -249,15 +323,48 @@ def interactive_menu():
         f_path = _strip_path_quotes(input("Enter audio or video file path: "))
         o_path = _strip_path_quotes(input("Output PDF path (Enter for default): "))
         device = input(f"Device (mps/cpu, default {DEFAULT_DEVICE}): ").strip().lower() or DEFAULT_DEVICE
+        lecturer = _strip_path_quotes(
+            input(f"Lecturer (Enter for {DEFAULT_LECTURER}): ")
+        ) or DEFAULT_LECTURER
+        author = _strip_path_quotes(
+            input(f"Prepared by (Enter for {DEFAULT_AUTHOR}): ")
+        ) or DEFAULT_AUTHOR
+        build_notes = input("Build lecture notes? (Y/n): ").strip().lower() not in {"n", "no"}
+        notes_model = DEFAULT_NOTES_MODEL
+        if build_notes:
+            notes_model = (
+                input(f"Local notes model (Enter for {DEFAULT_NOTES_MODEL}): ").strip()
+                or DEFAULT_NOTES_MODEL
+            )
         cmd_transcribe(argparse.Namespace(
             input=f_path,
             output=o_path or None,
-            lecturer=DEFAULT_LECTURER,
-            author=DEFAULT_AUTHOR,
+            lecturer=lecturer,
+            author=author,
             model="tiny.en",
             device=device,
-            notes_model=DEFAULT_NOTES_MODEL,
-            build_notes=True,
+            notes_model=notes_model,
+            build_notes=build_notes,
+        ))
+    elif choice == "notes":
+        t_path = _strip_path_quotes(input("Enter path to transcript file (.txt / .md): "))
+        o_path = _strip_path_quotes(input("Output PDF path (Enter for default): "))
+        lecturer = _strip_path_quotes(
+            input(f"Lecturer (Enter for {DEFAULT_LECTURER}): ")
+        ) or DEFAULT_LECTURER
+        author = _strip_path_quotes(
+            input(f"Prepared by (Enter for {DEFAULT_AUTHOR}): ")
+        ) or DEFAULT_AUTHOR
+        notes_model = (
+            input(f"Local notes model (Enter for {DEFAULT_NOTES_MODEL}): ").strip()
+            or DEFAULT_NOTES_MODEL
+        )
+        cmd_build_notes(argparse.Namespace(
+            input=t_path,
+            output=o_path or None,
+            lecturer=lecturer,
+            author=author,
+            notes_model=notes_model,
         ))
     elif choice == "split":
         f_path = _strip_path_quotes(input("Enter audio file path: "))
@@ -342,6 +449,23 @@ def main():
         help=f"Transcription device (default: {DEFAULT_DEVICE})",
     )
 
+    # Build lecture notes from an existing text transcript.
+    notes_parser = subparsers.add_parser(
+        "notes",
+        help="Build a two-part notes PDF from an existing transcript file",
+    )
+    notes_parser.add_argument("-i", "--input", required=True, help="Transcript text file (.txt or .md)")
+    notes_parser.add_argument("-o", "--output", default=None, help="Output PDF path")
+    notes_parser.add_argument(
+        "--lecturer", default=DEFAULT_LECTURER, help="Lecturer name printed in the PDF"
+    )
+    notes_parser.add_argument("--author", default=DEFAULT_AUTHOR, help="Your name printed in the PDF")
+    notes_parser.add_argument(
+        "--notes-model",
+        default=DEFAULT_NOTES_MODEL,
+        help=f"Local Ollama model for lecture notes (default: {DEFAULT_NOTES_MODEL})",
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -354,6 +478,8 @@ def main():
         cmd_summarize(args)
     elif args.command == "transcribe":
         cmd_transcribe(args)
+    elif args.command == "notes":
+        cmd_build_notes(args)
 
 if __name__ == "__main__":
     main()

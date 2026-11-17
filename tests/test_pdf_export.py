@@ -38,7 +38,7 @@ class TranscriptPdfTests(unittest.TestCase):
     def test_interactive_menu_offers_transcription(self):
         with (
             patch("trim_audio.cli.select") as menu,
-            patch("builtins.input", side_effect=["'lecture.mov'", "", "mps"]),
+            patch("builtins.input", side_effect=["'lecture.mov'", "", "mps", "", "", "", ""]),
             patch("trim_audio.cli.cmd_transcribe") as transcribe,
         ):
             menu.return_value.ask.return_value = "transcribe"
@@ -49,8 +49,36 @@ class TranscriptPdfTests(unittest.TestCase):
         self.assertEqual(args.input, "lecture.mov")
         self.assertIsNone(args.output)
         self.assertEqual(args.lecturer, "Dr. Cletus Fiifi Adams")
+        self.assertEqual(args.author, "Wilfred Ayine")
         self.assertEqual(args.device, "mps")
+        self.assertEqual(args.notes_model, "qwen3:8b")
         self.assertTrue(args.build_notes)
+
+    def test_interactive_menu_offers_existing_transcript_notes(self):
+        with (
+            patch("trim_audio.cli.select") as menu,
+            patch("builtins.input", side_effect=["lecture.txt", "", "", "", "", ""]),
+            patch("trim_audio.cli.cmd_build_notes") as build_notes,
+        ):
+            menu.return_value.ask.return_value = "notes"
+            interactive_menu()
+
+        self.assertIn("notes", [choice.value for choice in menu.call_args.kwargs["choices"]])
+        args = build_notes.call_args.args[0]
+        self.assertEqual(args.input, "lecture.txt")
+        self.assertEqual(args.notes_model, "qwen3:8b")
+
+    def test_interactive_transcription_can_skip_notes(self):
+        with (
+            patch("trim_audio.cli.select") as menu,
+            patch("builtins.input", side_effect=["lecture.mov", "", "cpu", "", "", "n"]),
+            patch("trim_audio.cli.cmd_transcribe") as transcribe,
+        ):
+            menu.return_value.ask.return_value = "transcribe"
+            interactive_menu()
+
+        args = transcribe.call_args.args[0]
+        self.assertFalse(args.build_notes)
 
     def test_blank_interactive_timecode_is_reprompted(self):
         with patch("builtins.input", side_effect=["", "00:00:05"]):
