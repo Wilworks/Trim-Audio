@@ -36,7 +36,10 @@ class TranscribeCommandTests(unittest.TestCase):
         ):
             cmd_transcribe(self.args)
 
-        build_notes.assert_called_once_with(self.transcription, model=DEFAULT_NOTES_MODEL)
+        build_notes.assert_called_once()
+        self.assertEqual(build_notes.call_args.args[0], self.transcription)
+        self.assertEqual(build_notes.call_args.kwargs["model"], DEFAULT_NOTES_MODEL)
+        self.assertTrue(callable(build_notes.call_args.kwargs["progress_callback"]))
         self.assertEqual(create_pdf.call_args.kwargs["author"], DEFAULT_AUTHOR)
         self.assertEqual(create_pdf.call_args.kwargs["lecture_notes"], "## Lecture notes")
         self.assertEqual(create_pdf.call_args.kwargs["notes_model"], DEFAULT_NOTES_MODEL)

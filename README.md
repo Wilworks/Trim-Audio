@@ -93,6 +93,8 @@ trim-audio transcribe -i "Bioelectronics Lecture 4.mov" --no-notes
 
 The interactive flow asks for the lecturer name each time; press Enter to use the
 default. Pass an audio or video **file** to `-i`, not its containing folder.
+The CLI shows an audio-timeline progress bar while transcribing and a completed
+model-request progress bar while generating local lecture notes.
 
 MPS is the default transcription device on Apple Silicon; use `--device cpu` or
 `--device mps` to select it explicitly.

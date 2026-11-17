@@ -9,6 +9,7 @@ import platform
 import sys
 import time
 from pathlib import Path
+from typing import Callable
 
 DEFAULT_DEVICE = (
     "mps"
@@ -21,6 +22,7 @@ def transcribe_audio_file(
     audio_path: str | Path,
     model_name: str = "tiny.en",
     device: str = DEFAULT_DEVICE,
+    progress_callback: Callable[[float, float], None] | None = None,
 ) -> dict:
     """Transcribes an audio file using Faster-Whisper ASR engine."""
     audio_path = Path(audio_path)
@@ -32,6 +34,8 @@ def transcribe_audio_file(
         from faster_whisper import WhisperModel
         model = WhisperModel(model_name, device=device, compute_type=compute_type)
         segments, info = model.transcribe(str(audio_path), beam_size=5, vad_filter=True)
+        if progress_callback and info.duration > 0:
+            progress_callback(0.0, info.duration)
         
         segment_list = []
         full_text_chunks = []
@@ -45,8 +49,12 @@ def transcribe_audio_file(
                     "text": txt
                 })
                 full_text_chunks.append(txt)
+            if progress_callback and info.duration > 0:
+                progress_callback(min(s.end, info.duration), info.duration)
 
         full_text = " ".join(full_text_chunks)
+        if progress_callback and info.duration > 0:
+            progress_callback(info.duration, info.duration)
 
         return {
             "filename": audio_path.name,
@@ -65,6 +73,13 @@ def transcribe_audio_file(
         import whisper
         model = whisper.load_model("tiny")
         res = model.transcribe(str(audio_path))
+        if progress_callback:
+            duration = max(
+                (segment.get("end", 0.0) for segment in res.get("segments", [])),
+                default=0.0,
+            )
+            progress_total = duration or 1.0
+            progress_callback(progress_total, progress_total)
         
         return {
             "filename": audio_path.name,

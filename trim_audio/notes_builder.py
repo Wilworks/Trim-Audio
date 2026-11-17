@@ -2,6 +2,7 @@
 
 import json
 import re
+from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -132,7 +133,27 @@ def _format_chunk_notes(model: str, chunk: dict, index: int, total: int) -> str:
     return _ollama_chat(model, prompt, num_predict=2048)
 
 
-def _merge_notes(model: str, note_parts: list[str]) -> str:
+def _count_note_requests(chunk_count: int) -> int:
+    request_count = chunk_count
+    current_count = chunk_count
+    while current_count > 1:
+        next_count = 0
+        for index in range(0, current_count, MERGE_BATCH_SIZE):
+            group_size = min(MERGE_BATCH_SIZE, current_count - index)
+            next_count += 1
+            if group_size > 1:
+                request_count += 1
+        current_count = next_count
+    return request_count
+
+
+def _merge_notes(
+    model: str,
+    note_parts: list[str],
+    progress_callback: Callable[[int, int, str], None] | None = None,
+    completed_requests: int = 0,
+    total_requests: int = 0,
+) -> str:
     current = note_parts
     while len(current) > 1:
         merged = []
@@ -150,19 +171,56 @@ def _merge_notes(model: str, note_parts: list[str]) -> str:
                 "in the supplied notes. Return Markdown only.\n\n"
                 + "\n\n---\n\n".join(group)
             )
+            if progress_callback:
+                progress_callback(
+                    completed_requests,
+                    total_requests,
+                    "Combining lecture notes",
+                )
             merged.append(_ollama_chat(model, prompt, num_predict=4096))
+            completed_requests += 1
+            if progress_callback:
+                progress_callback(
+                    completed_requests,
+                    total_requests,
+                    "Combining lecture notes",
+                )
         current = merged
     return current[0]
 
 
-def build_lecture_notes(transcription: dict, model: str = DEFAULT_NOTES_MODEL) -> str:
+def build_lecture_notes(
+    transcription: dict,
+    model: str = DEFAULT_NOTES_MODEL,
+    progress_callback: Callable[[int, int, str], None] | None = None,
+) -> str:
     """Create comprehensive, timestamp-aware notes using the local Ollama API."""
     chunks = _transcript_chunks(transcription)
     if not chunks:
         return "No spoken transcript was available to build lecture notes."
 
-    note_parts = [
-        _format_chunk_notes(model, chunk, index, len(chunks))
-        for index, chunk in enumerate(chunks, start=1)
-    ]
-    return _merge_notes(model, note_parts)
+    total_requests = _count_note_requests(len(chunks))
+    completed_requests = 0
+    note_parts = []
+    for index, chunk in enumerate(chunks, start=1):
+        if progress_callback:
+            progress_callback(
+                completed_requests,
+                total_requests,
+                f"Writing lecture notes {index}/{len(chunks)}",
+            )
+        note_parts.append(_format_chunk_notes(model, chunk, index, len(chunks)))
+        completed_requests += 1
+        if progress_callback:
+            progress_callback(
+                completed_requests,
+                total_requests,
+                f"Writing lecture notes {index}/{len(chunks)}",
+            )
+    return _merge_notes(
+        model,
+        note_parts,
+        progress_callback=progress_callback,
+        completed_requests=completed_requests,
+        total_requests=total_requests,
+    )

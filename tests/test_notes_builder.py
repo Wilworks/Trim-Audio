@@ -19,8 +19,15 @@ class LectureNotesBuilderTests(unittest.TestCase):
                 {"start": 62.4, "end": 75.0, "text": "The lecturer defines bioelectronics."},
             ],
         }
+        progress = []
         with patch("trim_audio.notes_builder.urlopen", return_value=response) as urlopen:
-            notes = build_lecture_notes(transcription, model="qwen3:8b")
+            notes = build_lecture_notes(
+                transcription,
+                model="qwen3:8b",
+                progress_callback=lambda completed, total, phase: progress.append(
+                    (completed, total, phase)
+                ),
+            )
 
         request = urlopen.call_args.args[0]
         payload = json.loads(request.data)
@@ -28,6 +35,32 @@ class LectureNotesBuilderTests(unittest.TestCase):
         self.assertEqual(payload["model"], "qwen3:8b")
         self.assertIn("[00:01:02]", payload["messages"][1]["content"])
         self.assertIn("Core concept", notes)
+        self.assertEqual((progress[0][0], progress[0][1]), (0, 1))
+        self.assertEqual((progress[-1][0], progress[-1][1]), (1, 1))
+
+    def test_progress_counts_note_generation_and_merge_requests(self):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = json.dumps({
+            "message": {"content": "## Notes\n- Source content."}
+        }).encode("utf-8")
+        transcription = {
+            "segments": [
+                {"start": index, "end": index + 1, "text": "word " * 1001}
+                for index in range(4)
+            ],
+        }
+        progress = []
+        with patch("trim_audio.notes_builder.urlopen", return_value=response) as urlopen:
+            build_lecture_notes(
+                transcription,
+                progress_callback=lambda completed, total, phase: progress.append(
+                    (completed, total, phase)
+                ),
+            )
+
+        self.assertEqual(urlopen.call_count, 6)
+        self.assertEqual((progress[-1][0], progress[-1][1]), (6, 6))
 
     def test_reports_when_local_ollama_is_unavailable(self):
         with patch(

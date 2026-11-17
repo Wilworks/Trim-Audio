@@ -45,6 +45,7 @@ class BuildNotesCommandTests(unittest.TestCase):
 
         transcription = build_notes.call_args.args[0]
         self.assertEqual(build_notes.call_args.kwargs["model"], "qwen3:8b")
+        self.assertTrue(callable(build_notes.call_args.kwargs["progress_callback"]))
         self.assertEqual(transcription["filename"], "TRANSCRIPT_COMBINED.txt")
         self.assertIn("## Lecture 4.mov", transcription["full_text"])
         self.assertNotIn("MASTER AUDIO TRANSCRIPTION", transcription["full_text"])

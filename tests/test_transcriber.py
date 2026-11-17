@@ -15,12 +15,17 @@ class TranscriberDeviceTests(unittest.TestCase):
             SimpleNamespace(duration=1.0, language="en"),
         )
         whisper_module = SimpleNamespace(WhisperModel=Mock(return_value=model))
+        progress = []
 
         with tempfile.TemporaryDirectory() as temp_dir:
             audio_path = Path(temp_dir) / "lecture.mov"
             audio_path.touch()
             with patch.dict("sys.modules", {"faster_whisper": whisper_module}):
-                result = transcribe_audio_file(audio_path, device="mps")
+                result = transcribe_audio_file(
+                    audio_path,
+                    device="mps",
+                    progress_callback=lambda completed, total: progress.append((completed, total)),
+                )
 
         whisper_module.WhisperModel.assert_called_once_with(
             "tiny.en",
@@ -28,6 +33,8 @@ class TranscriberDeviceTests(unittest.TestCase):
             compute_type="float16",
         )
         self.assertEqual(result["full_text"], "Speech from video.")
+        self.assertEqual(progress[0], (0.0, 1.0))
+        self.assertEqual(progress[-1], (1.0, 1.0))
 
     def test_mps_failure_is_not_silently_retried_on_cpu(self):
         whisper_model = Mock(side_effect=RuntimeError("MPS unavailable"))

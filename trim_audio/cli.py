@@ -12,7 +12,14 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+)
 from rich import box
 from questionary import Choice, Style, select
 
@@ -168,6 +175,70 @@ def cmd_transcribe_files(audio_files, master_out):
     console.print(f"[bold black on bright_green] 🎉 TRANSCRIPTION COMPLETE [/] Total Words: {res['total_words']}")
     console.print(f"📁 Master Transcript Saved To: [underline]{res['output_path']}[/underline]\n")
 
+def _create_progress():
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=40, style="blue", complete_style="bright_green"),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    )
+
+def _transcribe_with_progress(input_path, model_name, device):
+    with _create_progress() as progress:
+        task = progress.add_task("Loading model and decoding media...", total=None)
+
+        def update_transcription_progress(completed, duration):
+            if duration > 0:
+                progress.update(
+                    task,
+                    description="Transcribing audio timeline",
+                    total=duration,
+                    completed=min(max(completed, 0), duration),
+                )
+
+        result = transcribe_audio_file(
+            input_path,
+            model_name=model_name,
+            device=device,
+            progress_callback=update_transcription_progress,
+        )
+        duration = float(result.get("duration") or 0)
+        if duration > 0:
+            progress.update(
+                task,
+                description="Transcription complete",
+                total=duration,
+                completed=duration,
+            )
+        else:
+            progress.update(
+                task,
+                description="Transcription complete",
+                total=1,
+                completed=1,
+            )
+    return result
+
+def _build_notes_with_progress(transcription, model):
+    with _create_progress() as progress:
+        task = progress.add_task("Preparing local lecture notes...", total=1)
+
+        def update_notes_progress(completed, total, phase):
+            progress.update(
+                task,
+                description=f"{phase} · {completed}/{total} model requests",
+                total=total,
+                completed=completed,
+            )
+
+        return build_lecture_notes(
+            transcription,
+            model=model,
+            progress_callback=update_notes_progress,
+        )
+
 def cmd_transcribe(args):
     input_path = Path(args.input)
     if not input_path.exists():
@@ -186,17 +257,14 @@ def cmd_transcribe(args):
         f"\n[bold yellow]🎙️ Transcribing speech from:[/] [cyan]{input_path.name}[/cyan] "
         f"using [cyan]{device}[/cyan]..."
     )
-    result = transcribe_audio_file(input_path, model_name=args.model, device=device)
+    result = _transcribe_with_progress(input_path, model_name=args.model, device=device)
     author = getattr(args, "author", DEFAULT_AUTHOR)
     lecture_notes = None
     notes_model = None
     if getattr(args, "build_notes", True):
         notes_model = getattr(args, "notes_model", DEFAULT_NOTES_MODEL)
         try:
-            with console.status(
-                f"[bold cyan]Building comprehensive notes locally with {notes_model}...[/]"
-            ):
-                lecture_notes = build_lecture_notes(result, model=notes_model)
+            lecture_notes = _build_notes_with_progress(result, model=notes_model)
         except RuntimeError as exc:
             console.print(
                 f"[bold red]Could not build lecture notes; no PDF was created:[/] {exc}"
@@ -267,10 +335,7 @@ def cmd_build_notes(args):
         f"\n[bold yellow]🧠 Building lecture notes from:[/] [cyan]{input_path.name}[/cyan]"
     )
     try:
-        with console.status(
-            f"[bold cyan]Building comprehensive notes locally with {notes_model}...[/]"
-        ):
-            lecture_notes = build_lecture_notes(transcription, model=notes_model)
+        lecture_notes = _build_notes_with_progress(transcription, model=notes_model)
     except RuntimeError as exc:
         console.print(f"[bold red]Could not build lecture notes; no PDF was created:[/] {exc}")
         return
